@@ -15,8 +15,8 @@ NachosSems::NachosSems()
 NachosSems::~NachosSems()
 {
   if( usage == 1 ){
-    //delete openSemsMap;
-    //delete[] semaphores;
+    delete openSemsMap;
+    delete[] semaphores;
   }
 }
 

@@ -192,8 +192,8 @@ Thread::Yield ()
 
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+	     scheduler->ReadyToRun(this);
+	     scheduler->Run(nextThread);
     }
     interrupt->SetLevel(oldLevel);
 }
