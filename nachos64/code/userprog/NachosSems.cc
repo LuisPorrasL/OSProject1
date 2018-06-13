@@ -23,7 +23,7 @@ NachosSems::~NachosSems()
 void NachosSems::print()
 {
   for (int x= 0; x < MAX_SEMS; ++x)
-    printf("Valor en el vector de info: %ld\n", semaphores[x] );
+  printf("Valor en el vector de info: %ld\n", semaphores[x] );
 
 }
 
@@ -33,10 +33,10 @@ int NachosSems::registerSem( long s )
 
   if (-1 != freeSemSpace )
   {
-    printf("Valor libre para registrar sem: %d\n", freeSemSpace );
+  //  printf("Valor libre para registrar sem: %d\n", freeSemSpace );
     semaphores[ freeSemSpace ] = s;
   }
-  print();
+  //print();
   return freeSemSpace;
 }
 
@@ -53,7 +53,7 @@ long NachosSems::unRegisterSem( int id )
 }
 long NachosSems::getNachosPointer( int id )
 {
-  print();
+  //print();
   return semaphores[ id ];
 }
 void NachosSems::addSem()

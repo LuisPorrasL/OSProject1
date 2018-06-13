@@ -324,13 +324,13 @@ void Nachos_Fork()
 void Nachos_SemCreate()
 {
   long initValue = machine->ReadRegister( 4 );
-  printf("Valor inicial: %ld\n", initValue );
+  //printf("Valor inicial: %ld\n", initValue );
   Semaphore* sem = new Semaphore("Sem usuario", initValue);
   if ( sem != NULL )
   {
-    printf("Se crea sem\n");
+    //printf("Se crea sem\n");
     int nachosSemIdentfier = currentThread->mySems->registerSem( (long)sem );
-    printf("Su identificador es : %d\n", nachosSemIdentfier );
+    //printf("Su identificador es : %d\n", nachosSemIdentfier );
     machine->WriteRegister( 2, nachosSemIdentfier );
   }else
   {
@@ -341,41 +341,41 @@ void Nachos_SemCreate()
 
 void Nachos_SemWait()
 {
-  printf("%s\n", "Nachos wait");
+  //printf("%s\n", "Nachos wait");
   int semId = machine->ReadRegister( 4 );
-  printf("id: %d\n", semId );
+  //printf("id: %d\n", semId );
   long pointerToCast = currentThread->mySems->getNachosPointer( semId );
-  printf("Valor direccion %ld\n",pointerToCast);
+  //printf("Valor direccion %ld\n",pointerToCast);
   if ( pointerToCast !=  -1 )
   {
-    printf("%s\n","Hago wait" );
+    //printf("%s\n","Hago wait" );
     Semaphore* sem = (Semaphore*)pointerToCast;
     sem->P(); // then wait
     machine->WriteRegister( 2, 0 );
   }else
   {
-    printf("%s\n","NO hago wait" );
+    //printf("%s\n","NO hago wait" );
     machine->WriteRegister( 2, -1 );
   }
 }
 
 void Nachos_SemSignal()
 {
-  printf("%s\n", "Nachos signal");
+  //printf("%s\n", "Nachos signal");
   int semId = machine->ReadRegister( 4 );
-  printf("id: %d\n", semId );
+  //printf("id: %d\n", semId );
   long pointerToCast = currentThread->mySems->getNachosPointer( semId );
-  printf("Valor direccion %ld\n",pointerToCast);
+  //printf("Valor direccion %ld\n",pointerToCast);
   if ( pointerToCast != -1 )
   {
     Semaphore* sem = (Semaphore*)pointerToCast;
-    printf("%s%d\n","Hago signal valor semaforo: ", sem->getValue() );
+    //printf("%s%d\n","Hago signal valor semaforo: ", sem->getValue() );
     sem->V(); // then wait
-    printf("%s%d\n","Hago signal valor semaforo: ", sem->getValue() );
+    //printf("%s%d\n","Hago signal valor semaforo: ", sem->getValue() );
     machine->WriteRegister( 2, 0 );
   }else
   {
-    printf("%s\n","No Hago signal" );
+    //printf("%s\n","No Hago signal" );
     machine->WriteRegister( 2, -1 );
   }
 }
@@ -383,9 +383,9 @@ void Nachos_SemSignal()
 void Nachos_SemDestroy()
 {
   int semId = machine->ReadRegister( 4 );
-  printf("id: %d\n", semId );
+  //printf("id: %d\n", semId );
   long sem = currentThread->mySems->unRegisterSem( semId );
-  printf("Valor direccion %ld\n",sem);
+  //printf("Valor direccion %ld\n",sem);
   if ( sem != -1 )
   {
     Semaphore* s = (Semaphore*) sem;
@@ -408,11 +408,12 @@ void Nachos_Exit(){
 
   nextThread = scheduler->FindNextToRun();
   if (nextThread != NULL) {
-    currentThread->Finish();
     scheduler->Run(nextThread);
+  }else
+  {
+    currentThread->Finish();
   }
   interrupt->SetLevel(oldLevel);
-  currentThread->Finish();
   returnFromSystemCall();
 }//Nachos_Exit
 
