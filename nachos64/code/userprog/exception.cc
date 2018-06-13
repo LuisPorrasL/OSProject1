@@ -417,13 +417,37 @@ void Nachos_Exit(){
   returnFromSystemCall();
 }//Nachos_Exit
 
+char name[100] = {0};
+void NachosExec1( void* fileName)
+{
+  printf("\nvoy a a hacer el exec del archivo: %s\n", name);
+  OpenFile *executable = fileSystem->Open(name);
+  AddrSpace *space;
+
+  if (executable == NULL) {
+     printf("Unable to open file %s<<<<\n", name);
+     machine->WriteRegister( 2, -1 );
+     return;
+  }
+
+  space = new AddrSpace(executable);
+  //Thread* eThread = new Thread("ExecThread");
+  currentThread->space = space;
+
+  delete executable;			        // close file
+  currentThread->space->InitRegisters();		// set the initial register values
+  currentThread->space->RestoreState();		// load page table register
+  machine->Run();			// jump to the user progam
+  ASSERT(false);			// machine->Run never returns;
+}
+
 void Nachos_Exec(){
   /* Run the executable, stored in the Nachos file "name", and return the
    * address space identifier
    */
   //SpaceId Exec(char *name);
+  printf("\n%s\n", "llamado a exec");
   int r4 = machine->ReadRegister( 4 );
-  char name[100] = {0};
 
   int c = 0, i = 0;
   do{
@@ -432,31 +456,14 @@ void Nachos_Exec(){
     name[i++] = c;
   }while(c != 0);
 
-  printf("%s\n", name);
+  strcpy(name,"brillo1");
+  
 
-  OpenFile *executable = fileSystem->Open(name);
-  AddrSpace *space;
-
-  if (executable == NULL) {
-     printf("Unable to open file %s\n", name);
-     machine->WriteRegister( 2, -1 );
-     return;
-  }
+  Thread* meDesentiendo = new Thread(name);
+  meDesentiendo->Fork( NachosExec1, (void*)(char*) name );
+  machine->WriteRegister( 2, (long)1 ); //Return the new thread memory address
   returnFromSystemCall();
 
-  space = new AddrSpace(executable);
-  Thread* eThread = new Thread("ExecThread");
-  eThread->space = space;
-
-  delete executable;			// close file
-
-  machine->WriteRegister( 2, (long)eThread ); //Return the new thread memory address
-
-  eThread->space->InitRegisters();		// set the initial register values
-  eThread->space->RestoreState();		// load page table register
-
-  scheduler->ReadyToRun(eThread);
-  //currentThread->Yield();
 
   //machine->Run();			// jump to the user progam
   //ASSERT(false);			// machine->Run never returns;
