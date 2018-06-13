@@ -416,6 +416,53 @@ void Nachos_Exit(){
   returnFromSystemCall();
 }//Nachos_Exit
 
+void Nachos_Exec(){
+  /* Run the executable, stored in the Nachos file "name", and return the
+   * address space identifier
+   */
+  //SpaceId Exec(char *name);
+  int r4 = machine->ReadRegister( 4 );
+  char name[100] = {0};
+
+  int c = 0, i = 0;
+  do{
+    machine->ReadMem(r4, 1, &c);
+    r4++;
+    name[i++] = c;
+  }while(c != 0);
+
+  printf("%s\n", name);
+
+  OpenFile *executable = fileSystem->Open(name);
+  AddrSpace *space;
+
+  if (executable == NULL) {
+     printf("Unable to open file %s\n", name);
+     machine->WriteRegister( 2, -1 );
+     return;
+  }
+  returnFromSystemCall();
+
+  space = new AddrSpace(executable);
+  Thread* eThread = new Thread("ExecThread");
+  eThread->space = space;
+
+  delete executable;			// close file
+
+  machine->WriteRegister( 2, (long)eThread ); //Return the new thread memory address
+
+  eThread->space->InitRegisters();		// set the initial register values
+  eThread->space->RestoreState();		// load page table register
+
+  scheduler->ReadyToRun(eThread);
+  //currentThread->Yield();
+
+  //machine->Run();			// jump to the user progam
+  //ASSERT(false);			// machine->Run never returns;
+        // the address space exits
+        // by doing the syscall "exit"
+}
+
 
 void ExceptionHandler(ExceptionType which)
 {
@@ -469,6 +516,9 @@ void ExceptionHandler(ExceptionType which)
       case SC_Yield:
       currentThread->Yield();
       returnFromSystemCall();
+      break;
+      case SC_Exec:
+      Nachos_Exec();
       break;
       default:
       printf("Unexpected syscall exception %d\n", type );
