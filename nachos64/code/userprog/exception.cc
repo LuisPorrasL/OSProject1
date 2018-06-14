@@ -426,15 +426,15 @@ class forExec
 public:
   long threadId;
   std::string fileName;
-  bool isWaitingForMe;
-  bool amStilRunning;
-  Condition* c;
+  long waintingForMeCounter;
+  bool stillRunning;
+  Semaphore* s;
   forExec()
   :threadId(-1)
   ,fileName()
-  ,isWaitingForMe( false )
-  ,amStilRunning ( true )
-  ,c( new Condition("For join") )
+  ,waintingForMeCounter( 0 )
+  ,stillRunning ( true )
+  ,s( new Semaphore("For join", 0) )
   {
 
   }
@@ -458,6 +458,7 @@ void NachosExec1( void* id)
      return;
   }
   space = new AddrSpace( executable );
+  delete currentThread->space; // i dont need may space anymore
   currentThread->space = space;
 
   delete executable;			        // close file
@@ -495,12 +496,32 @@ void Nachos_Exec(){
   ExecFiles.push_back(newE);
 
   newT->Fork( NachosExec1, (void*) fileToExec ); // ojo se elimino warning
-  machine->WriteRegister(2, newE->threadId );
+  machine->WriteRegister(2, fileToExec );
   returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
   DEBUG( 't', "Exiting EXEC System call\n" );
 }
 
+void Nachos_Join()
+{
+  long id = machine->ReadRegister( 4 );
+  forExec* otherThreadInfo = ExecFiles[ id ];
+
+  // only the last one thread must delete the vector
+  ASSERT( otherThreadInfo != NULL );
+  // if the thread is still running
+  if ( otherThreadInfo->stillRunning )
+  {
+      ++otherThreadInfo->waintingForMeCounter;
+      otherThreadInfo->s->P();
+      --otherThreadInfo-> waintingForMeCounter;
+      if ( otherThreadInfo->waintingForMeCounter == 0 )
+      {
+        otherThreadInfo->stillRunning = false;
+        delete otherThreadInfo->s;
+      }
+  }
+}
 
 void ExceptionHandler(ExceptionType which)
 {
@@ -512,63 +533,91 @@ void ExceptionHandler(ExceptionType which)
     switch ( type )
     {
       case SC_Halt:
-      Nachos_Halt();              // System call # 0
+        Nachos_Halt();              // System call # 0
       break;
-      case SC_Open:
-      Nachos_Open();              // System call # 5
+        case SC_Open:
+        Nachos_Open();              // System call # 5
       break;
-      case SC_Read:
-      Nachos_Read();              // System call # 6
+        case SC_Read:
+        Nachos_Read();              // System call # 6
       break;
-      case SC_Write:
-      Nachos_Write();             // System call # 7
+        case SC_Write:
+        Nachos_Write();             // System call # 7
       break;
-      case SC_Create:
-      Nachos_Create();            // System call # 5
+        case SC_Create:
+        Nachos_Create();            // System call # 5
       break;
-      case SC_Close:                  // System call # 8
-      Nachos_Close();
+        case SC_Close:                  // System call # 8
+        Nachos_Close();
       break;
-      case SC_Fork:
-      Nachos_Fork();
+        case SC_Fork:
+        Nachos_Fork();
       break;
-      case SC_Exit:
-      Nachos_Exit();
+        case SC_Exit:
+        Nachos_Exit();
       break;
       case SC_SemCreate:
-      Nachos_SemCreate();
-      returnFromSystemCall();
+        Nachos_SemCreate();
+        returnFromSystemCall();
       break;
       case SC_SemDestroy:
-      Nachos_SemDestroy();
-      returnFromSystemCall();
+        Nachos_SemDestroy();
+        returnFromSystemCall();
       break;
       case SC_SemSignal:
-      Nachos_SemSignal();
-      returnFromSystemCall();
+        Nachos_SemSignal();
+        returnFromSystemCall();
       break;
       case SC_SemWait:
-      Nachos_SemWait();
-      returnFromSystemCall();
+        Nachos_SemWait();
+        returnFromSystemCall();
       break;
       case SC_Yield:
-      currentThread->Yield();
-      returnFromSystemCall();
+        currentThread->Yield();
+        returnFromSystemCall();
       break;
-      case SC_Exec:
-      Nachos_Exec();
+        case SC_Exec:
+        Nachos_Exec();
       break;
       case SC_Join:
-      returnFromSystemCall();
+        returnFromSystemCall();
       break;
       default:
-      printf("Unexpected syscall exception %d\n", type );
-      ASSERT(false);
+        printf("Unexpected syscall exception %d\n", type );
+        ASSERT(false);
       break;
     }
     break;
+    case PageFaultException:
+      printf("\nPageFaultException\n");
+      ASSERT(false);
+    break;
+    case ReadOnlyException:
+      printf("\nReadOnlyException\n");
+      ASSERT(false);
+    break;
+    case BusErrorException:
+      printf("\nBusErrorException\n");
+      ASSERT(false);
+    break;
+    case AddressErrorException:
+      printf("\nAddressErrorException\n");
+      ASSERT(false);
+    break;
+    case OverflowException:
+      printf("\nOverflowException\n");
+      ASSERT(false);
+    break;
+    case IllegalInstrException:
+      printf("\nIllegalInstrException\n");
+      ASSERT(false);
+    break;
+    case NumExceptionTypes:
+      printf("\nNumExceptionTypes\n");
+      ASSERT(false);
+    break;
     default:
-    printf( "Unexpected exception %d\n", which );
+    printf("\nUnexpected exception %d\n", which );
     ASSERT(false);
     break;
   }

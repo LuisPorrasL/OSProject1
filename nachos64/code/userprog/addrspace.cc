@@ -75,6 +75,11 @@ AddrSpace::AddrSpace( AddrSpace* other)
 	 pageTable[index].readOnly = false;
 	}
 	// 8 paginas para la pila
+	/*
+	printf("%s\n", "\nUsed pages: " );
+	MemBitMap->Print();
+	printf("\n");
+	*/
 	for (index = dataAndCodePages; index < numPages ; ++ index )
 	{
 	 pageTable[index].virtualPage =  index;	// for now, virtual page # = phys page #
@@ -88,6 +93,12 @@ AddrSpace::AddrSpace( AddrSpace* other)
 
 AddrSpace::AddrSpace(OpenFile *executable)
 {
+		/*
+		printf("%s\n", "\nUsed pages: " );
+		MemBitMap->Print();
+		printf("\n");
+		*/
+
     NoffHeader noffH;
     unsigned int i, size;
 
