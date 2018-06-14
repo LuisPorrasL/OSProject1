@@ -31,6 +31,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <string.h>
+#include <iostream>
+#include <vector>
+
 Semaphore* Console = new Semaphore("Console", 1);
 
 //----------------------------------------------------------------------
@@ -87,7 +91,7 @@ void Nachos_Open() {                    // System call 5
   // Use NachosOpenFilesTable class to create a relationship
   // between user file and unix file
   // Verify for errors
-  printf("Opening!\n");
+  //printf("Opening!\n");
 
   int r4 = machine->ReadRegister(4);
   char fileName [128] = {0};
@@ -115,7 +119,7 @@ void Nachos_Open() {                    // System call 5
 bool test = true;
 
 void Nachos_Read(){
-  printf("Reading!\n");
+  //printf("Reading!\n");
   int r4 =  machine->ReadRegister(4); // pointer to Nachos Mem
   int size = machine->ReadRegister(5); // byte to read
   OpenFileId fileId = machine->ReadRegister(6); // file to read
@@ -228,7 +232,7 @@ returnFromSystemCall();		// Update the PC registers
 }       // Nachos_Write
 
 void Nachos_Create(){
-  printf("Creating!\n");
+  ///printf("Creating!\n");
   int r4 = machine->ReadRegister(4); // read from register 4
   char fileName[256] = {0}; // need to store file name to unix create sc
   int c, i; // counter
@@ -253,7 +257,7 @@ void Nachos_Create(){
 void Nachos_Close(){
   /* Close the file, we're done reading and writing to it.
   void Close(OpenFileId id);*/
-  printf("Closing!\n");
+  //printf("Closing!\n");
   OpenFileId id = machine->ReadRegister( 4 );
   int unixOpenFileId = currentThread->mytable->getUnixHandle( id );
   int nachosResult = currentThread->mytable->Close(id);
@@ -314,7 +318,7 @@ void Nachos_Fork()
   // Pass the user routine address, now in register 4, as a parameter
   // Note: in 64 bits register 4 need to be casted to (void *)
   newT->Fork( NachosForkThread, (void*)(long)(machine->ReadRegister( 4 ))); // ojo se elimino warning
-
+  currentThread->Yield();
   returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
   DEBUG( 'u', "Exiting Fork System call\n" );
@@ -354,7 +358,7 @@ void Nachos_SemWait()
     machine->WriteRegister( 2, 0 );
   }else
   {
-    //printf("%s\n","NO hago wait" );
+    printf("%s\n","NO hago wait" );
     machine->WriteRegister( 2, -1 );
   }
 }
@@ -375,7 +379,7 @@ void Nachos_SemSignal()
     machine->WriteRegister( 2, 0 );
   }else
   {
-    //printf("%s\n","No Hago signal" );
+    printf("%s\n","No Hago signal" );
     machine->WriteRegister( 2, -1 );
   }
 }
@@ -417,58 +421,58 @@ void Nachos_Exit(){
   returnFromSystemCall();
 }//Nachos_Exit
 
-char name[100] = {0};
-void NachosExec1( void* fileName)
+std::vector<std::string> ExecFiles;
+long fileToExec = -1;
+
+void NachosExec1( void* id)
 {
-  printf("\nvoy a a hacer el exec del archivo: %s\n", name);
-  OpenFile *executable = fileSystem->Open(name);
+
+  //printf("Me toca el archivo %ld: \n", (long) id);
+  //printf("%s\n",ExecFiles[(long)id].c_str());
+
+  OpenFile *executable = fileSystem->Open(ExecFiles[(long)id].c_str());
   AddrSpace *space;
 
   if (executable == NULL) {
-     printf("Unable to open file %s<<<<\n", name);
-     machine->WriteRegister( 2, -1 );
+     printf("Unable to open file %s<<<<\n",ExecFiles[(long)id].c_str());
      return;
   }
-
-  space = new AddrSpace(executable);
-  //Thread* eThread = new Thread("ExecThread");
+  space = new AddrSpace( executable );
   currentThread->space = space;
 
   delete executable;			        // close file
-  currentThread->space->InitRegisters();		// set the initial register values
-  currentThread->space->RestoreState();		// load page table register
+  space->InitRegisters();		// set the initial register values
+  space->RestoreState();		// load page table register
   machine->Run();			// jump to the user progam
+  printf("\t\t\t\t\tError\n");
   ASSERT(false);			// machine->Run never returns;
+
 }
 
 void Nachos_Exec(){
-  /* Run the executable, stored in the Nachos file "name", and return the
-   * address space identifier
-   */
-  //SpaceId Exec(char *name);
-  printf("\n%s\n", "llamado a exec");
-  int r4 = machine->ReadRegister( 4 );
 
-  int c = 0, i = 0;
-  do{
-    machine->ReadMem(r4, 1, &c);
+  DEBUG( 't', "Entering EXEC System call\n" );
+  long r4 = machine->ReadRegister( 4 ); // read from register 4
+  char name[256] = {0}; // need to store file name to unix create sc
+  int c, i; // counter
+  i = 0;
+
+  do
+  {
+    machine->ReadMem( r4 , 1 , &c ); // read from nachos mem
     r4++;
     name[i++] = c;
-  }while(c != 0);
+  }while (c != 0 );
+  std::string s = name;
+  ExecFiles.push_back(s);
+  // We need to create a new kernel thread to execute the user thread
+  Thread * newT = new Thread( "HILO EXEC" );
+  ++fileToExec;
+  newT->Fork( NachosExec1, (void*) fileToExec ); // ojo se elimino warning
+  machine->WriteRegister(2, (long) newT );
+  returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
-  strcpy(name,"brillo1");
-  
-
-  Thread* meDesentiendo = new Thread(name);
-  meDesentiendo->Fork( NachosExec1, (void*)(char*) name );
-  machine->WriteRegister( 2, (long)1 ); //Return the new thread memory address
-  returnFromSystemCall();
-
-
-  //machine->Run();			// jump to the user progam
-  //ASSERT(false);			// machine->Run never returns;
-        // the address space exits
-        // by doing the syscall "exit"
+  DEBUG( 't', "Exiting EXEC System call\n" );
 }
 
 

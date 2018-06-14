@@ -9,7 +9,7 @@ NachosOpenFilesTable::NachosOpenFilesTable()
 
 	for (int x = 3; x < MAX_FILES; ++x)
 		 this->openFiles[x] = 0;
- 
+
 	this->openFilesMap = new BitMap( MAX_FILES );
 	this->openFilesMap->Mark(0);
 	this->openFilesMap->Mark(1);
@@ -19,10 +19,7 @@ NachosOpenFilesTable::NachosOpenFilesTable()
 
 NachosOpenFilesTable::~NachosOpenFilesTable()
 {
-    if(usage == 1){
-        delete[] openFiles;
-        delete openFilesMap;
-    }
+
 }
 
 bool NachosOpenFilesTable::isOpened( int NachosHandle ){
@@ -33,12 +30,12 @@ bool NachosOpenFilesTable::isOpened( int NachosHandle ){
 }
 
 int NachosOpenFilesTable:: Open( int UnixHandle )
-{	
+{
 	int freeFile = this->openFilesMap->Find();
 	if (freeFile != -1)
 	{
 		this->openFiles[ freeFile ] = UnixHandle;
-	} 		
+	}
 	return freeFile;
 }
 
@@ -64,7 +61,12 @@ void NachosOpenFilesTable::addThread(){
 }
 
 void NachosOpenFilesTable::delThread(){
-    --usage;
+    --usage;		
+		if(usage < 0){
+				delete[] openFiles;
+				delete openFilesMap;
+				printf("Ultimo hilo borra tabla de archivos\n");
+		}
 }
 
 void NachosOpenFilesTable::Print(){
@@ -73,5 +75,3 @@ void NachosOpenFilesTable::Print(){
     }
     printf("\n");
 }
-
-

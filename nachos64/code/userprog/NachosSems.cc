@@ -14,10 +14,7 @@ NachosSems::NachosSems()
 
 NachosSems::~NachosSems()
 {
-  if( usage == 1 ){
-    delete openSemsMap;
-    delete[] semaphores;
-  }
+
 }
 
 void NachosSems::print()
@@ -63,4 +60,9 @@ void NachosSems::addSem()
 void NachosSems::delSem()
 {
   --usage;
+  if( usage == 0 ){
+    delete openSemsMap;
+    delete[] semaphores;
+    printf("Borrando tabla de semaforos. Ultimo Hilo\n");
+  }
 }
