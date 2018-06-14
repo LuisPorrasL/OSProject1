@@ -19,7 +19,11 @@ NachosOpenFilesTable::NachosOpenFilesTable()
 
 NachosOpenFilesTable::~NachosOpenFilesTable()
 {
-
+	if(usage <= 0){
+			delete[] openFiles;
+			delete openFilesMap;
+			printf("Ultimo hilo borra tabla de archivos\n");
+	}
 }
 
 bool NachosOpenFilesTable::isOpened( int NachosHandle ){
@@ -61,12 +65,7 @@ void NachosOpenFilesTable::addThread(){
 }
 
 void NachosOpenFilesTable::delThread(){
-    --usage;		
-		if(usage < 0){
-				delete[] openFiles;
-				delete openFilesMap;
-				printf("Ultimo hilo borra tabla de archivos\n");
-		}
+    --usage;
 }
 
 void NachosOpenFilesTable::Print(){

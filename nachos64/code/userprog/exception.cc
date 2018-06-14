@@ -93,7 +93,7 @@ void Nachos_Open() {                    // System call 5
   // Verify for errors
   //printf("Opening!\n");
 
-  int r4 = machine->ReadRegister(4);
+  int r4 = machine->ReadRegister( 4 );
   char fileName [128] = {0};
   int c = 0, i = 0;
   do{
@@ -102,8 +102,8 @@ void Nachos_Open() {                    // System call 5
     fileName[i++] = c;
   }while(c != 0);
 
-  int unixOpenFileId = open(fileName, O_RDWR);
-  if(unixOpenFileId != -1){
+  int unixOpenFileId = open( fileName, O_RDWR );
+  if( unixOpenFileId != -1 ){
     int nachosOpenFileId = currentThread->mytable->Open(unixOpenFileId);
     if(nachosOpenFileId != -1){
       ///currentThread->mytable->Print();
@@ -421,20 +421,40 @@ void Nachos_Exit(){
   returnFromSystemCall();
 }//Nachos_Exit
 
-std::vector<std::string> ExecFiles;
+class forExec
+{
+public:
+  long threadId;
+  std::string fileName;
+  bool isWaitingForMe;
+  bool amStilRunning;
+  Condition* c;
+  forExec()
+  :threadId(-1)
+  ,fileName()
+  ,isWaitingForMe( false )
+  ,amStilRunning ( true )
+  ,c( new Condition("For join") )
+  {
+
+  }
+
+};
+std::vector<forExec*> ExecFiles;
 long fileToExec = -1;
 
 void NachosExec1( void* id)
 {
 
+  forExec* info = ExecFiles[(long)id];
   //printf("Me toca el archivo %ld: \n", (long) id);
   //printf("%s\n",ExecFiles[(long)id].c_str());
 
-  OpenFile *executable = fileSystem->Open(ExecFiles[(long)id].c_str());
+  OpenFile *executable = fileSystem->Open(info->fileName.c_str());
   AddrSpace *space;
 
   if (executable == NULL) {
-     printf("Unable to open file %s<<<<\n",ExecFiles[(long)id].c_str());
+     printf("Unable to open file %s<<<<\n",info->fileName.c_str());
      return;
   }
   space = new AddrSpace( executable );
@@ -464,12 +484,18 @@ void Nachos_Exec(){
     name[i++] = c;
   }while (c != 0 );
   std::string s = name;
-  ExecFiles.push_back(s);
+  forExec* newE = new forExec();
+
   // We need to create a new kernel thread to execute the user thread
   Thread * newT = new Thread( "HILO EXEC" );
   ++fileToExec;
+
+  newE->threadId = (long) newT;
+  newE->fileName = s;
+  ExecFiles.push_back(newE);
+
   newT->Fork( NachosExec1, (void*) fileToExec ); // ojo se elimino warning
-  machine->WriteRegister(2, (long) newT );
+  machine->WriteRegister(2, newE->threadId );
   returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
   DEBUG( 't', "Exiting EXEC System call\n" );
@@ -531,6 +557,9 @@ void ExceptionHandler(ExceptionType which)
       break;
       case SC_Exec:
       Nachos_Exec();
+      break;
+      case SC_Join:
+      returnFromSystemCall();
       break;
       default:
       printf("Unexpected syscall exception %d\n", type );
