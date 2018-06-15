@@ -33,7 +33,6 @@
 
 #include <string.h>
 #include <iostream>
-#include <vector>
 
 Semaphore* Console = new Semaphore("Console", 1);
 
@@ -73,14 +72,14 @@ void returnFromSystemCall() {
   machine->WriteRegister( PCReg, npc );           // PC <- NextPC
   machine->WriteRegister( NextPCReg, npc + 4 );   // NextPC <- NextPC + 4
 
-}       // returnFromSystemCall
+}// returnFromSystemCall
 
 
 void Nachos_Halt() {                    // System call 0
   DEBUG('a', "Shutdown, initiated by user program.\n");
   interrupt->Halt();
 
-}       // Nachos_Halt
+}// Nachos_Halt
 
 
 void Nachos_Open() {                    // System call 5
@@ -114,9 +113,7 @@ void Nachos_Open() {                    // System call 5
   }
   printf("Error: unable to open file\n");
   returnFromSystemCall();		// Update the PC registers
-}       // Nachos_Open
-
-bool test = true;
+}// Nachos_Open
 
 void Nachos_Read(){
   //printf("Reading!\n");
@@ -167,7 +164,7 @@ void Nachos_Read(){
     break;
   }
   returnFromSystemCall();
-}       // Nachos_Read
+}// Nachos_Read
 
 void Nachos_Write() {                   // System call 7
 
@@ -229,7 +226,7 @@ stats->numConsoleCharsWritten += size;
 Console->V();
 returnFromSystemCall();		// Update the PC registers
 
-}       // Nachos_Write
+}// Nachos_Write
 
 void Nachos_Create(){
   ///printf("Creating!\n");
@@ -252,7 +249,7 @@ void Nachos_Create(){
     printf("Error: unable to create new file\n");
   }
   returnFromSystemCall();		// Update the PC registers
-}       // Nachos_Create
+}// Nachos_Create
 
 void Nachos_Close(){
   /* Close the file, we're done reading and writing to it.
@@ -267,7 +264,7 @@ void Nachos_Close(){
   }
   //currentThread->mytable->Print();
   returnFromSystemCall();		// Update the PC registers
-}       // Nachos_Close
+}// Nachos_Close
 
 void NachosForkThread( void * p ) { // for 64 bits version
   AddrSpace *space;
@@ -322,7 +319,7 @@ void Nachos_Fork()
   returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
   DEBUG( 'u', "Exiting Fork System call\n" );
-}	// Kernel_Fork
+}	// Nachos_Fork
 
 
 void Nachos_SemCreate()
@@ -341,7 +338,7 @@ void Nachos_SemCreate()
     // return invalid id for sem
     machine->WriteRegister( 2, -1 );
   }
-}
+}// Nachos_SemCreate
 
 void Nachos_SemWait()
 {
@@ -361,7 +358,7 @@ void Nachos_SemWait()
     printf("%s\n","NO hago wait" );
     machine->WriteRegister( 2, -1 );
   }
-}
+}// Nachos_SemWait
 
 void Nachos_SemSignal()
 {
@@ -382,7 +379,7 @@ void Nachos_SemSignal()
     printf("%s\n","No Hago signal" );
     machine->WriteRegister( 2, -1 );
   }
-}
+}// Nachos_SemSignal
 
 void Nachos_SemDestroy()
 {
@@ -400,15 +397,45 @@ void Nachos_SemDestroy()
     // sem isnt destroied.
     machine->WriteRegister( 2, -1 );
   }
-}
+}// Nachos_SemDestroy
 
-/* This user program is done (status = 0 means exited normally). */
+struct joinS
+{
+  long threadId;
+  std::string fileName;
+  Semaphore* s;
+  inline joinS():threadId(-1),fileName(),s(NULL){}
+};
+
+joinS** execFiles = new joinS*[128];
+BitMap* execFilesMap = new BitMap(128);
+
 void Nachos_Exit(){
+  /* This user program is done (status = 0 means exited normally). */
   //void Exit(int status);
   Thread* nextThread;
   IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
   DEBUG('t', "Finishing thread \"%s\"\n", currentThread->getName());
+
+  //printf("currentThread: %ld\n", (long)currentThread);
+
+  for(int ind = 0; ind < 128; ++ind){
+    if(execFilesMap->Test(ind)){
+      //printf("I'm a EXEC thread %ld\n", execFiles[ind]->threadId);
+      if((long)currentThread == execFiles[ind]->threadId){
+        if(execFiles[ind]->s != NULL){
+          //printf("Someone is wainting for me: %ld\n", execFiles[ind]->threadId);
+          execFiles[ind]->s->V();
+        }
+        else{
+          //printf("No one is wainting for me: %ld\n", execFiles[ind]->threadId);
+          delete execFiles[ind];
+          execFilesMap->Clear(ind);
+        }
+      }
+    }
+  }
 
   nextThread = scheduler->FindNextToRun();
   if (nextThread != NULL) {
@@ -418,44 +445,19 @@ void Nachos_Exit(){
     currentThread->Finish();
   }
   interrupt->SetLevel(oldLevel);
-  returnFromSystemCall();
+  //returnFromSystemCall();
 }//Nachos_Exit
 
-class forExec
+void NachosExecThread( void* id)
 {
-public:
-  long threadId;
-  std::string fileName;
-  long waintingForMeCounter;
-  bool stillRunning;
-  Semaphore* s;
-  forExec()
-  :threadId(-1)
-  ,fileName()
-  ,waintingForMeCounter( 0 )
-  ,stillRunning ( true )
-  ,s( new Semaphore("For join", 0) )
-  {
-
-  }
-
-};
-std::vector<forExec*> ExecFiles;
-long fileToExec = -1;
-
-void NachosExec1( void* id)
-{
-
-  forExec* info = ExecFiles[(long)id];
-  //printf("Me toca el archivo %ld: \n", (long) id);
-  //printf("%s\n",ExecFiles[(long)id].c_str());
+  joinS* info = execFiles[(long)id];
 
   OpenFile *executable = fileSystem->Open(info->fileName.c_str());
   AddrSpace *space;
 
   if (executable == NULL) {
-     printf("Unable to open file %s<<<<\n",info->fileName.c_str());
-     return;
+    printf("Unable to open file %s\n",info->fileName.c_str());
+    return;
   }
   space = new AddrSpace( executable );
   delete currentThread->space; // i dont need may space anymore
@@ -467,10 +469,13 @@ void NachosExec1( void* id)
   machine->Run();			// jump to the user progam
   printf("\t\t\t\t\tError\n");
   ASSERT(false);			// machine->Run never returns;
-
 }
 
 void Nachos_Exec(){
+  /* Run the executable, stored in the Nachos file "name", and return the
+  * address space identifier
+  */
+  //SpaceId Exec(char *name);
 
   DEBUG( 't', "Entering EXEC System call\n" );
   long r4 = machine->ReadRegister( 4 ); // read from register 4
@@ -485,43 +490,55 @@ void Nachos_Exec(){
     name[i++] = c;
   }while (c != 0 );
   std::string s = name;
-  forExec* newE = new forExec();
+  joinS* newE = new joinS();
 
   // We need to create a new kernel thread to execute the user thread
   Thread * newT = new Thread( "HILO EXEC" );
-  ++fileToExec;
+  long fileToExec = execFilesMap->Find();
+  if(fileToExec == -1){
+    machine->WriteRegister(2, fileToExec );
+    return;
+  }
 
   newE->threadId = (long) newT;
   newE->fileName = s;
-  ExecFiles.push_back(newE);
+  execFiles[fileToExec] = newE;
 
-  newT->Fork( NachosExec1, (void*) fileToExec ); // ojo se elimino warning
+  newT->Fork( NachosExecThread, (void*) fileToExec ); // ojo se elimino warning
   machine->WriteRegister(2, fileToExec );
   returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
 
   DEBUG( 't', "Exiting EXEC System call\n" );
-}
+}// Nachos_Exec
 
 void Nachos_Join()
 {
-  long id = machine->ReadRegister( 4 );
-  forExec* otherThreadInfo = ExecFiles[ id ];
+  /* Only return once the the user program "id" has finished.
+  * Return the exit status.
+  */
+  //int Join(SpaceId id);
 
-  // only the last one thread must delete the vector
-  ASSERT( otherThreadInfo != NULL );
-  // if the thread is still running
-  if ( otherThreadInfo->stillRunning )
-  {
-      ++otherThreadInfo->waintingForMeCounter;
-      otherThreadInfo->s->P();
-      --otherThreadInfo-> waintingForMeCounter;
-      if ( otherThreadInfo->waintingForMeCounter == 0 )
-      {
-        otherThreadInfo->stillRunning = false;
-        delete otherThreadInfo->s;
-      }
+  DEBUG( 't', "Entering JOIN System call\n" );
+
+  //First I need to read the SpaceID of the thread I must wait for
+  long id = machine->ReadRegister( 4 ); // read from register 4
+  //I need to make sure it is a valid thread
+  if(execFilesMap->Test(id)){
+    //I need to create a Semaphore asosieted with this SpaceID
+    Semaphore* joinSem = new Semaphore("JOIN Semaphore", 0);
+    execFiles[id]->s = joinSem;
+    joinSem->P();
+    //printf("%ld: %s\n", execFiles[id]->threadId, "just give me a sigh");
+    delete execFiles[id];
+    execFilesMap->Clear(id);
+    machine->WriteRegister(2, 0);
   }
-}
+  else{ //invalid SpaceID
+    //printf("%s\n", "Error JOIN: ¡Invalid SpaceID!");
+    machine->WriteRegister(2, -1 );
+  }
+  returnFromSystemCall();	// This adjust the PrevPC, PC, and NextPC registers
+}// Nachos_Join
 
 void ExceptionHandler(ExceptionType which)
 {
@@ -532,89 +549,89 @@ void ExceptionHandler(ExceptionType which)
     case SyscallException:
     switch ( type )
     {
-      case SC_Halt:
-        Nachos_Halt();              // System call # 0
+      case SC_Halt:                 //System call # 0
+      Nachos_Halt();
       break;
-        case SC_Open:
-        Nachos_Open();              // System call # 5
+      case SC_Exit:                 //System call # 1
+      Nachos_Exit();
       break;
-        case SC_Read:
-        Nachos_Read();              // System call # 6
+      case SC_Exec:                 //System call # 2
+      Nachos_Exec();
       break;
-        case SC_Write:
-        Nachos_Write();             // System call # 7
+      case SC_Join:                 //System call # 3
+      Nachos_Join();
       break;
-        case SC_Create:
-        Nachos_Create();            // System call # 5
+      case SC_Create:               //System call # 4
+      Nachos_Create();
       break;
-        case SC_Close:                  // System call # 8
-        Nachos_Close();
+      case SC_Open:                 //System call # 5
+      Nachos_Open();
       break;
-        case SC_Fork:
-        Nachos_Fork();
+      case SC_Read:                 //System call # 6
+      Nachos_Read();
       break;
-        case SC_Exit:
-        Nachos_Exit();
+      case SC_Write:                //System call # 7
+      Nachos_Write();
       break;
-      case SC_SemCreate:
-        Nachos_SemCreate();
-        returnFromSystemCall();
+      case SC_Close:                //System call # 8
+      Nachos_Close();
       break;
-      case SC_SemDestroy:
-        Nachos_SemDestroy();
-        returnFromSystemCall();
+      case SC_Fork:                 //System call # 9
+      Nachos_Fork();
       break;
-      case SC_SemSignal:
-        Nachos_SemSignal();
-        returnFromSystemCall();
+      case SC_Yield:                //System call # 10
+      currentThread->Yield();
+      returnFromSystemCall();
       break;
-      case SC_SemWait:
-        Nachos_SemWait();
-        returnFromSystemCall();
+      case SC_SemCreate:            //System call # 11
+      Nachos_SemCreate();
+      returnFromSystemCall();
       break;
-      case SC_Yield:
-        currentThread->Yield();
-        returnFromSystemCall();
+      case SC_SemDestroy:           //System call # 12
+      Nachos_SemDestroy();
+      returnFromSystemCall();
       break;
-        case SC_Exec:
-        Nachos_Exec();
+      case SC_SemSignal:            //System call # 13
+      Nachos_SemSignal();
+      returnFromSystemCall();
       break;
-      case SC_Join:
-        returnFromSystemCall();
+      case SC_SemWait:              //System call # 14
+      Nachos_SemWait();
+      returnFromSystemCall();
       break;
       default:
-        printf("Unexpected syscall exception %d\n", type );
-        ASSERT(false);
+      printf("Unexpected syscall exception %d\n", type );
+      ASSERT(false);
       break;
     }
     break;
     case PageFaultException:
-      printf("\nPageFaultException\n");
-      ASSERT(false);
+    printf("\nPageFaultException\n");
+    ASSERT(false);
     break;
     case ReadOnlyException:
-      printf("\nReadOnlyException\n");
-      ASSERT(false);
+    printf("\nReadOnlyException\n");
+    ASSERT(false);
     break;
     case BusErrorException:
-      printf("\nBusErrorException\n");
-      ASSERT(false);
+    printf("\nBusErrorException\n");
+    ASSERT(false);
     break;
     case AddressErrorException:
-      printf("\nAddressErrorException\n");
-      ASSERT(false);
+    printf("\nAddressErrorException\n");
+    ASSERT(false);
     break;
     case OverflowException:
-      printf("\nOverflowException\n");
-      ASSERT(false);
+    printf("\nOverflowException\n");
+    ASSERT(false);
     break;
     case IllegalInstrException:
-      printf("\nIllegalInstrException\n");
-      ASSERT(false);
+    printf("\nIllegalInstrException\n");
+    ASSERT(false);
     break;
     case NumExceptionTypes:
-      printf("\nNumExceptionTypes\n");
-      ASSERT(false);
+    printf("\nNumExceptionTypes\n");
+    ASSERT(false);
     break;
     default:
     printf("\nUnexpected exception %d\n", which );
