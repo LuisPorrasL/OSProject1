@@ -120,8 +120,9 @@ void Nachos_Read(){
   int r4 =  machine->ReadRegister(4); // pointer to Nachos Mem
   int size = machine->ReadRegister(5); // byte to read
   OpenFileId fileId = machine->ReadRegister(6); // file to read
-  char bufferReader[size] = {0}; // store unix result
+  char bufferReader[size + 1] = {0}; // store unix result
   int readBytes = 0; // amount of read bytes
+  int count = 0;
 
   // verify if file is one of standar output/input
   switch ( fileId ) {
@@ -132,7 +133,17 @@ void Nachos_Read(){
     printf("%s\n", "Error, can not read from standard error");
     break;
     case ConsoleInput:
-    fgets( bufferReader, size , stdin );
+    //fgets( bufferReader, size , stdin );
+    /*readBytes =  read( ConsoleInput,
+    (void *)bufferReader, size );*/
+
+    while (count < size )
+    {
+      std::cin>> bufferReader[count];        
+      ++count;
+    }
+
+    bufferReader[ size + 1 ]= '\0';
     readBytes = strlen( bufferReader );
     // write into Nachos mem
     for (int index = 0; index < readBytes; ++  index )
