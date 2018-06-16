@@ -139,7 +139,7 @@ void Nachos_Read(){
 
     while (count < size )
     {
-      std::cin>> bufferReader[count];        
+      std::cin>> bufferReader[count];
       ++count;
     }
 
@@ -447,6 +447,8 @@ void Nachos_Exit(){
       }
     }
   }
+
+  machine->WriteRegister(2, machine->ReadRegister(4));
 
   nextThread = scheduler->FindNextToRun();
   if (nextThread != NULL) {
